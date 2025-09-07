@@ -16,6 +16,6 @@ name = "print_image_id"
 path = "src/bin/print_image_id.rs"
 
 [package.metadata.risc0]
-methods = ["zkrun-guest"]
+methods = ["guest"]
 
 
