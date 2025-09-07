@@ -1,0 +1,12 @@
+.DS_Store
+/target
+**/target
+**/node_modules
+client/.env
+client/.env.local
+contracts/.env
+.env
+contracts/artifacts
+contracts/cache
+client/dist
+dist

@@ -1,0 +1,42 @@
+name: Build methods and print IMAGE_ID
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install RISC Zero toolchain (rzup)
+        run: |
+          curl -fsSL https://risczero.com/install | bash
+          echo "$HOME/.risc0/bin" >> $GITHUB_PATH
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+      - name: Install latest RISC Zero toolchain
+        run: |
+          rzup install
+
+      - name: Build methods
+        run: |
+          cargo build -p zkrun-methods --release
+
+      - name: Print IMAGE_ID
+        id: print
+        run: |
+          cargo run -p zkrun-methods --bin print_image_id --release | tee image_id.txt
+          echo "image_id=$(grep -o '0x[0-9a-fA-F]\+' image_id.txt)" >> $GITHUB_OUTPUT
+
+      - name: Upload IMAGE_ID artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: image-id
+          path: image_id.txt
+
+
