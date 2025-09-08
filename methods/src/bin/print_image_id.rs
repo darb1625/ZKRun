@@ -3,8 +3,9 @@ use hex::ToHex;
 fn main() {
     // Read generated methods.rs as text and parse IMAGE_ID words
     let src: &str = include_str!(concat!(env!("OUT_DIR"), "/methods.rs"));
-    let needle = "IMAGE_ID";
-    let pos = src.find(needle).expect("IMAGE_ID not found in generated methods");
+    // Try to find either IMAGE_ID or fallback to ID
+    let needle = if src.contains("IMAGE_ID") { "IMAGE_ID" } else { "ID" };
+    let pos = src.find(needle).expect("ID not found in generated methods");
     let bracket_start = src[pos..].find('[').expect("[") + pos;
     let bracket_end = src[bracket_start..].find(']').expect("]") + bracket_start;
     let inside = &src[bracket_start + 1..bracket_end];
