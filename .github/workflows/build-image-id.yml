@@ -29,6 +29,13 @@ jobs:
         run: |
           cargo build -p zkrun-methods --release
 
+      - name: Debug methods.rs
+        run: |
+          set -e
+          f=$(find target -type f -path "*/build/*/out/methods.rs" | head -1)
+          echo "methods.rs at: $f"
+          sed -n '1,120p' "$f"
+
       - name: Print IMAGE_ID
         id: print
         run: |
