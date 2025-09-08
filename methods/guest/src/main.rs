@@ -6,7 +6,6 @@ extern crate alloc;
 use alloc::vec::Vec;
 use k256::ecdsa::Signature as EcdsaSignature;
 use k256::ecdsa::{signature::DigestVerifier, VerifyingKey};
-use k256::elliptic_curve::sec1::ToEncodedPoint;
 use minicbor::Decode;
 use risc0_zkvm::guest::env;
 use sha2::{Digest, Sha256};
@@ -125,10 +124,9 @@ fn distance_segment_meters(lat1: i32, lon1: i32, lat2: i32, lon2: i32) -> u64 {
 fn verify_signature(blob: &[u8], sig: &[u8], pubkey: &[u8]) -> Option<[u8; 20]> {
     if sig.len() != 65 { return None; }
     if pubkey.len() != 65 { return None; }
-    // Compute SHA-256(blob)
+    // Prepare SHA-256 digest state over blob
     let mut hasher = Sha256::new();
     hasher.update(blob);
-    let digest = hasher.finalize();
     // Parse signature r||s||v (ignore v)
     let mut sig64 = [0u8; 64];
     sig64.copy_from_slice(&sig[0..64]);
@@ -136,7 +134,7 @@ fn verify_signature(blob: &[u8], sig: &[u8], pubkey: &[u8]) -> Option<[u8; 20]> 
     // Parse provided uncompressed public key
     let verify_key = VerifyingKey::from_sec1_bytes(pubkey).ok()?;
     // Verify digest
-    if verify_key.verify_digest(digest.into(), &signature).is_err() {
+    if verify_key.verify_digest(hasher, &signature).is_err() {
         return None;
     }
     // Ethereum address = last 20 bytes of keccak256(uncompressed_pubkey[1..])
