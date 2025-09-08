@@ -12,8 +12,11 @@ fn main() {
         "ID"
     };
     let pos = src.find(needle).expect("ID not found in generated methods");
-    let bracket_start = src[pos..].find('[').expect("[") + pos;
-    let bracket_end = src[bracket_start..].find(']').expect("]") + bracket_start;
+    // Prefer the array brackets after the '=' (skip the type brackets like [u32; 8])
+    let eq_rel = src[pos..].find('=').expect("expected '=' after ID");
+    let eq_idx = pos + eq_rel;
+    let bracket_start = src[eq_idx..].find('[').expect("expected '[' after '='") + eq_idx;
+    let bracket_end = src[bracket_start..].find(']').expect("expected ']' after '['") + bracket_start;
     let inside = &src[bracket_start + 1..bracket_end];
     fn parse_num(token: &str) -> Option<u32> {
         let mut s = token;
