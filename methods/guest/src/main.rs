@@ -4,7 +4,6 @@
 extern crate alloc;
 
 use alloc::vec::Vec;
-use k256::ecdsa::recoverable::Signature as RecoverableSignature;
 use k256::ecdsa::Signature as EcdsaSignature;
 use k256::ecdsa::{signature::DigestVerifier, VerifyingKey};
 use k256::elliptic_curve::sec1::ToEncodedPoint;
@@ -41,6 +40,8 @@ struct RunInput {
     blob: Vec<u8>,
     #[n(6)]
     sig: Vec<u8>, // 65 bytes r||s||v
+    #[n(7)]
+    pubkey: Vec<u8>, // 65-byte uncompressed SEC1 (0x04 || X || Y)
 }
 
 const EARTH_RADIUS_M: i64 = 6_371_000; // meters
@@ -121,31 +122,24 @@ fn distance_segment_meters(lat1: i32, lon1: i32, lat2: i32, lon2: i32) -> u64 {
     if meters < 0 { 0 } else { meters as u64 }
 }
 
-fn verify_signature(blob: &[u8], sig: &[u8]) -> Option<[u8; 20]> {
+fn verify_signature(blob: &[u8], sig: &[u8], pubkey: &[u8]) -> Option<[u8; 20]> {
     if sig.len() != 65 { return None; }
+    if pubkey.len() != 65 { return None; }
     // Compute SHA-256(blob)
     let mut hasher = Sha256::new();
     hasher.update(blob);
     let digest = hasher.finalize();
-
-    // Parse signature r||s||v
+    // Parse signature r||s||v (ignore v)
     let mut sig64 = [0u8; 64];
     sig64.copy_from_slice(&sig[0..64]);
-    let v_raw = sig[64];
-    let v = match v_raw {
-        27 | 28 => v_raw - 27,
-        0 | 1 => v_raw,
-        _ => return None,
-    };
-
-    let rec_id = k256::ecdsa::recoverable::Id::new(v).ok()?;
-    let rec_sig = k256::ecdsa::recoverable::Signature::new(&EcdsaSignature::from_bytes(&sig64).ok()?, rec_id).ok()?;
-    let verify_key = rec_sig.recover_verifying_key_from_digest_bytes(digest.into()).ok()?;
-
+    let signature = EcdsaSignature::from_slice(&sig64).ok()?;
+    // Parse provided uncompressed public key
+    let verify_key = VerifyingKey::from_sec1_bytes(pubkey).ok()?;
+    // Verify digest
+    if verify_key.verify_digest(digest.into(), &signature).is_err() {
+        return None;
+    }
     // Ethereum address = last 20 bytes of keccak256(uncompressed_pubkey[1..])
-    let pubkey_uncompressed = verify_key.to_encoded_point(false);
-    let pubkey = pubkey_uncompressed.as_bytes();
-    if pubkey.len() != 65 { return None; }
     let mut keccak = Keccak::v256();
     let mut out = [0u8; 32];
     keccak.update(&pubkey[1..]);
@@ -177,7 +171,7 @@ fn main() {
     }
 
     // Signature check (and recompute blob hash)
-    let signer_addr = match verify_signature(&run_in.blob, &run_in.sig) {
+    let signer_addr = match verify_signature(&run_in.blob, &run_in.sig, &run_in.pubkey) {
         Some(a) => a,
         None => { env::commit_slice(&[0u8]); return; }
     };

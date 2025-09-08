@@ -61,7 +61,7 @@ async function signSha256Blob(privKey: string, blob: Uint8Array): Promise<Uint8A
   return concatBytes(r, s, v);
 }
 
-function encodeGuestInput(run: { gps: Sample[]; start: number; end: number }, blob: Uint8Array, sig: Uint8Array, maxElapsedSec: number, maxSpeedMps: number): Uint8Array {
+function encodeGuestInput(run: { gps: Sample[]; start: number; end: number }, blob: Uint8Array, sig: Uint8Array, pubkey: Uint8Array, maxElapsedSec: number, maxSpeedMps: number): Uint8Array {
   // Guest expects a CBOR map with numeric keys per struct tags
   const gpsList = run.gps.map(s => new Map<number, number>([[0, s.t], [1, s.lat_microdeg], [2, s.lon_microdeg]]));
   const m = new Map<number, any>([
@@ -72,6 +72,7 @@ function encodeGuestInput(run: { gps: Sample[]; start: number; end: number }, bl
     [4, maxSpeedMps],
     [5, blob],
     [6, sig],
+    [7, pubkey],
   ]);
   return encode(m);
 }
@@ -123,9 +124,10 @@ async function main() {
 
   // 3) Sign SHA-256(blob) with Ethereum key (raw secp256k1)
   const sig = await signSha256Blob(privKey, blob);
+  const pubkey = Uint8Array.from(Buffer.from(new ethers.SigningKey(privKey).publicKey.slice(2), 'hex'));
 
   // 4) Encode guest input as CBOR
-  const input = encodeGuestInput(run, blob, sig, maxElapsedMinutes * 60, maxSpeedMps);
+  const input = encodeGuestInput(run, blob, sig, pubkey, maxElapsedMinutes * 60, maxSpeedMps);
 
   // 5) Prove with Bonsai (or other prover) to get receipt
   const { journal, seal } = await proveWithBonsai(methodIdHex, input);
