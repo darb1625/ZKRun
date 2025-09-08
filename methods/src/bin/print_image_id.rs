@@ -3,8 +3,14 @@ use hex::ToHex;
 fn main() {
     // Read generated methods.rs as text and parse IMAGE_ID words
     let src: &str = include_str!(concat!(env!("OUT_DIR"), "/methods.rs"));
-    // Try to find either IMAGE_ID or fallback to ID
-    let needle = if src.contains("IMAGE_ID") { "IMAGE_ID" } else { "ID" };
+    // Prefer GUEST_ID (current risczero build), else IMAGE_ID, else generic ID
+    let needle = if src.contains("GUEST_ID") {
+        "GUEST_ID"
+    } else if src.contains("IMAGE_ID") {
+        "IMAGE_ID"
+    } else {
+        "ID"
+    };
     let pos = src.find(needle).expect("ID not found in generated methods");
     let bracket_start = src[pos..].find('[').expect("[") + pos;
     let bracket_end = src[bracket_start..].find(']').expect("]") + bracket_start;
