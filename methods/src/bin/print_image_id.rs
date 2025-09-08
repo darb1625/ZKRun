@@ -25,7 +25,7 @@ fn main() {
             dec.parse::<u32>().ok()
         }
     }
-    let mut words_vec: alloc::vec::Vec<u32> = alloc::vec::Vec::new();
+    let mut words_vec: Vec<u32> = Vec::new();
     for part in inside.split(',') {
         if let Some(val) = parse_num(part) { words_vec.push(val); }
         if words_vec.len() == 8 { break; }
